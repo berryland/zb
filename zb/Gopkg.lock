@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
   revision = "f7279a603edee96fe7764d3de9c6ff8cf9970994"
@@ -9,7 +15,11 @@
 
 [[projects]]
   name = "github.com/klauspost/compress"
-  packages = ["flate","gzip","zlib"]
+  packages = [
+    "flate",
+    "gzip",
+    "zlib"
+  ]
   revision = "6c8db69c4b49dd4df1fff66996cf556176d0b9bf"
   version = "v1.2.1"
 
@@ -26,14 +36,46 @@
   version = "v1.1"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/stretchr/objx"
+  packages = ["."]
+  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
+  version = "v0.1"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = [
+    ".",
+    "assert",
+    "http",
+    "mock"
+  ]
+  revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/valyala/fasthttp"
-  packages = [".","fasthttputil"]
+  packages = [
+    ".",
+    "fasthttputil"
+  ]
   revision = "d42167fd04f636e20b005e9934159e95454233c7"
   version = "v20160617"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0e82b47d141f1d17b623fa91aaf6b66f9787b2d67b8010c450fbc02912ff78f3"
+  inputs-digest = "4ce58b24197037e4733f1c2f6edcc49b58cf53135e99e16a199745a82693d151"
   solver-name = "gps-cdcl"
   solver-version = 1
