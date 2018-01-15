@@ -36,13 +36,13 @@ func GetSymbols() (*map[string]SymbolConfig, error) {
 }
 
 type Quote struct {
-	Volume    float32
-	Last      float32
-	Sell      float32
-	Buy       float32
-	High      float32
-	Low       float32
-	Timestamp uint64
+	Volume float64
+	Last   float64
+	Sell   float64
+	Buy    float64
+	High   float64
+	Low    float64
+	Time   uint64
 }
 
 func GetLatestQuote(symbol string) (*Quote, error) {
@@ -66,18 +66,52 @@ func GetLatestQuote(symbol string) (*Quote, error) {
 	lowString, _ := jsonparser.GetString(ticker, "low")
 	dateString, _ := jsonparser.GetString(bytes, "date")
 
-	vol, _ := strconv.ParseFloat(volString, 32)
-	last, _ := strconv.ParseFloat(lastString, 32)
-	sell, _ := strconv.ParseFloat(sellString, 32)
-	buy, _ := strconv.ParseFloat(buyString, 32)
-	high, _ := strconv.ParseFloat(highString, 32)
-	low, _ := strconv.ParseFloat(lowString, 32)
+	vol, _ := strconv.ParseFloat(volString, 64)
+	last, _ := strconv.ParseFloat(lastString, 64)
+	sell, _ := strconv.ParseFloat(sellString, 64)
+	buy, _ := strconv.ParseFloat(buyString, 64)
+	high, _ := strconv.ParseFloat(highString, 64)
+	low, _ := strconv.ParseFloat(lowString, 64)
 	date, _ := strconv.ParseUint(dateString, 10, 64)
 
-	return &Quote{Volume: float32(vol), Last: float32(last), Sell: float32(sell), Buy: float32(buy), High: float32(high), Low: float32(low), Timestamp: date}, nil
+	return &Quote{Volume: vol, Last: last, Sell: sell, Buy: buy, High: high, Low: low, Time: date}, nil
 }
 
-func GetKlines(symbol string, peroid string, since uint64, size uint16) {
+type Kline struct {
+	Open   float64
+	Close  float64
+	High   float64
+	Low    float64
+	Volume float64
+	Time   uint64
+}
+
+func GetKlines(symbol string, period string, since uint64, size uint16) (*[]Kline, error) {
+	u, _ := url.Parse(DataApiUrl + "kline")
+	q := u.Query()
+	q.Set("market", symbol)
+	q.Set("type", period)
+	q.Set("since", strconv.FormatUint(since, 10))
+	q.Set("size", strconv.FormatUint(uint64(size), 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := doGet(u.String())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var klines []Kline
+	jsonparser.ArrayEach(resp.Body(), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		time, _ := jsonparser.GetInt(value, "[0]")
+		open, _ := jsonparser.GetFloat(value, "[1]")
+		high, _ := jsonparser.GetFloat(value, "[2]")
+		low, _ := jsonparser.GetFloat(value, "[3]")
+		close, _ := jsonparser.GetFloat(value, "[4]")
+		volume, _ := jsonparser.GetFloat(value, "[5]")
+		klines = append(klines, Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
+	}, "data")
+
+	return &klines, nil
 }
 
 func doGet(url string) (*fasthttp.Response, error) {

@@ -13,3 +13,7 @@ func TestGetLatestQuote(t *testing.T) {
 	quote, _ := GetLatestQuote("btc_usdt")
 	assert.True(t, quote.Last > 0)
 }
+
+func TestGetKlines(t *testing.T) {
+	GetKlines("btc_usdt", "5min", 1516029900000, 20)
+}
