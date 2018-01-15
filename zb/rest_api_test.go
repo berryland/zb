@@ -1,12 +1,12 @@
 package zb
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func TestGetCurrencyConfigs(t *testing.T) {
-	GetContractConfigs()
+func TestGetSymbols(t *testing.T) {
+	GetSymbols()
 }
 
 func TestGetLatestQuote(t *testing.T) {
