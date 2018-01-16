@@ -56,15 +56,15 @@ func GetLatestQuote(symbol string) (*Quote, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	bytes := resp.Body()
-	ticker, _, _, _ := jsonparser.Get(bytes, "ticker")
+	body := resp.Body()
+	ticker, _, _, _ := jsonparser.Get(body, "ticker")
 	volumeString, _ := jsonparser.GetString(ticker, "vol")
 	lastString, _ := jsonparser.GetString(ticker, "last")
 	sellString, _ := jsonparser.GetString(ticker, "sell")
 	buyString, _ := jsonparser.GetString(ticker, "buy")
 	highString, _ := jsonparser.GetString(ticker, "high")
 	lowString, _ := jsonparser.GetString(ticker, "low")
-	timeString, _ := jsonparser.GetString(bytes, "date")
+	timeString, _ := jsonparser.GetString(body, "date")
 
 	volume, _ := strconv.ParseFloat(volumeString, 64)
 	last, _ := strconv.ParseFloat(lastString, 64)
@@ -149,6 +149,42 @@ func GetTrades(symbol string, since uint64) (*[]Trade, error) {
 	})
 
 	return &trades, nil
+}
+
+type Depth struct {
+	Asks []DepthEntry
+	Bids []DepthEntry
+	Time uint64
+}
+
+type DepthEntry struct {
+	Price  float64
+	Amount float64
+}
+
+func GetDepth(symbol string, size uint8) (*Depth, error) {
+	u, _ := url.Parse(DataApiUrl + "depth")
+	q := u.Query()
+	q.Set("market", symbol)
+	q.Set("size", strconv.FormatUint(uint64(size), 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := doGet(u.String())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	body := resp.Body()
+	time, _ := jsonparser.GetInt(body, "timestamp")
+	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+
+	}, "asks")
+
+	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+
+	}, "bids")
+
+	return &Depth{Time: uint64(time)}, nil
 }
 
 func doGet(url string) (*fasthttp.Response, error) {
