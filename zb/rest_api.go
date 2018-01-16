@@ -58,23 +58,23 @@ func GetLatestQuote(symbol string) (*Quote, error) {
 
 	bytes := resp.Body()
 	ticker, _, _, _ := jsonparser.Get(bytes, "ticker")
-	volString, _ := jsonparser.GetString(ticker, "vol")
+	volumeString, _ := jsonparser.GetString(ticker, "vol")
 	lastString, _ := jsonparser.GetString(ticker, "last")
 	sellString, _ := jsonparser.GetString(ticker, "sell")
 	buyString, _ := jsonparser.GetString(ticker, "buy")
 	highString, _ := jsonparser.GetString(ticker, "high")
 	lowString, _ := jsonparser.GetString(ticker, "low")
-	dateString, _ := jsonparser.GetString(bytes, "date")
+	timeString, _ := jsonparser.GetString(bytes, "date")
 
-	vol, _ := strconv.ParseFloat(volString, 64)
+	volume, _ := strconv.ParseFloat(volumeString, 64)
 	last, _ := strconv.ParseFloat(lastString, 64)
 	sell, _ := strconv.ParseFloat(sellString, 64)
 	buy, _ := strconv.ParseFloat(buyString, 64)
 	high, _ := strconv.ParseFloat(highString, 64)
 	low, _ := strconv.ParseFloat(lowString, 64)
-	date, _ := strconv.ParseUint(dateString, 10, 64)
+	time, _ := strconv.ParseUint(timeString, 10, 64)
 
-	return &Quote{Volume: vol, Last: last, Sell: sell, Buy: buy, High: high, Low: low, Time: date}, nil
+	return &Quote{Volume: volume, Last: last, Sell: sell, Buy: buy, High: high, Low: low, Time: time}, nil
 }
 
 type Kline struct {
@@ -115,11 +115,11 @@ func GetKlines(symbol string, period string, since uint64, size uint16) (*[]Klin
 }
 
 type Trade struct {
-	tradeId   uint64
-	tradeType string
-	price     float64
-	amount    float64
-	time      uint64
+	TradeId   uint64
+	TradeType string
+	Price     float64
+	Amount    float64
+	Time      uint64
 }
 
 func GetTrades(symbol string, since uint64) (*[]Trade, error) {
@@ -133,10 +133,22 @@ func GetTrades(symbol string, since uint64) (*[]Trade, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	
+
+	var trades []Trade
 	jsonparser.ArrayEach(resp.Body(), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		
+		tradeId, _ := jsonparser.GetInt(value, "tid")
+		tradeType, _ := jsonparser.GetString(value, "type")
+		amountString, _ := jsonparser.GetString(value, "amount")
+		priceString, _ := jsonparser.GetString(value, "price")
+		time, _ := jsonparser.GetInt(value, "date")
+
+		amount, _ := strconv.ParseFloat(amountString, 64)
+		price, _ := strconv.ParseFloat(priceString, 64)
+
+		trades = append(trades, Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
 	})
+
+	return &trades, nil
 }
 
 func doGet(url string) (*fasthttp.Response, error) {

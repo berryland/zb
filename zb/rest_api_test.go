@@ -17,3 +17,7 @@ func TestGetLatestQuote(t *testing.T) {
 func TestGetKlines(t *testing.T) {
 	GetKlines("btc_usdt", "5min", 1516029900000, 20)
 }
+
+func TestGetTrades(t *testing.T) {
+	GetTrades("btc_usdt", 0)
+}
