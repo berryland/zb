@@ -114,6 +114,31 @@ func GetKlines(symbol string, period string, since uint64, size uint16) (*[]Klin
 	return &klines, nil
 }
 
+type Trade struct {
+	tradeId   uint64
+	tradeType string
+	price     float64
+	amount    float64
+	time      uint64
+}
+
+func GetTrades(symbol string, since uint64) (*[]Trade, error) {
+	u, _ := url.Parse(DataApiUrl + "trades")
+	q := u.Query()
+	q.Set("market", symbol)
+	q.Set("since", strconv.FormatUint(since, 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := doGet(u.String())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	
+	jsonparser.ArrayEach(resp.Body(), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		
+	})
+}
+
 func doGet(url string) (*fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(url)
