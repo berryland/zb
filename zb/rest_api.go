@@ -1,7 +1,7 @@
 package zb
 
 import (
-	"github.com/buger/jsonparser"
+	json "github.com/buger/jsonparser"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 	"net/url"
@@ -25,10 +25,10 @@ func GetSymbols() (*map[string]SymbolConfig, error) {
 	}
 
 	configs := map[string]SymbolConfig{}
-	jsonparser.ObjectEach(resp.Body(), func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		symbol, _ := jsonparser.ParseString(key)
-		amountScale, _ := jsonparser.GetInt(value, "amountScale")
-		priceScale, _ := jsonparser.GetInt(value, "priceScale")
+	json.ObjectEach(resp.Body(), func(key []byte, value []byte, dataType json.ValueType, offset int) error {
+		symbol, _ := json.ParseString(key)
+		amountScale, _ := json.GetInt(value, "amountScale")
+		priceScale, _ := json.GetInt(value, "priceScale")
 		configs[symbol] = SymbolConfig{byte(amountScale), byte(priceScale)}
 		return nil
 	})
@@ -57,14 +57,14 @@ func GetLatestQuote(symbol string) (*Quote, error) {
 	}
 
 	body := resp.Body()
-	ticker, _, _, _ := jsonparser.Get(body, "ticker")
-	volumeString, _ := jsonparser.GetString(ticker, "vol")
-	lastString, _ := jsonparser.GetString(ticker, "last")
-	sellString, _ := jsonparser.GetString(ticker, "sell")
-	buyString, _ := jsonparser.GetString(ticker, "buy")
-	highString, _ := jsonparser.GetString(ticker, "high")
-	lowString, _ := jsonparser.GetString(ticker, "low")
-	timeString, _ := jsonparser.GetString(body, "date")
+	ticker, _, _, _ := json.Get(body, "ticker")
+	volumeString, _ := json.GetString(ticker, "vol")
+	lastString, _ := json.GetString(ticker, "last")
+	sellString, _ := json.GetString(ticker, "sell")
+	buyString, _ := json.GetString(ticker, "buy")
+	highString, _ := json.GetString(ticker, "high")
+	lowString, _ := json.GetString(ticker, "low")
+	timeString, _ := json.GetString(body, "date")
 
 	volume, _ := strconv.ParseFloat(volumeString, 64)
 	last, _ := strconv.ParseFloat(lastString, 64)
@@ -101,13 +101,13 @@ func GetKlines(symbol string, period string, since uint64, size uint16) (*[]Klin
 	}
 
 	var klines []Kline
-	jsonparser.ArrayEach(resp.Body(), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		time, _ := jsonparser.GetInt(value, "[0]")
-		open, _ := jsonparser.GetFloat(value, "[1]")
-		high, _ := jsonparser.GetFloat(value, "[2]")
-		low, _ := jsonparser.GetFloat(value, "[3]")
-		close, _ := jsonparser.GetFloat(value, "[4]")
-		volume, _ := jsonparser.GetFloat(value, "[5]")
+	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
+		time, _ := json.GetInt(value, "[0]")
+		open, _ := json.GetFloat(value, "[1]")
+		high, _ := json.GetFloat(value, "[2]")
+		low, _ := json.GetFloat(value, "[3]")
+		close, _ := json.GetFloat(value, "[4]")
+		volume, _ := json.GetFloat(value, "[5]")
 		klines = append(klines, Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
 	}, "data")
 
@@ -135,12 +135,12 @@ func GetTrades(symbol string, since uint64) (*[]Trade, error) {
 	}
 
 	var trades []Trade
-	jsonparser.ArrayEach(resp.Body(), func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		tradeId, _ := jsonparser.GetInt(value, "tid")
-		tradeType, _ := jsonparser.GetString(value, "type")
-		amountString, _ := jsonparser.GetString(value, "amount")
-		priceString, _ := jsonparser.GetString(value, "price")
-		time, _ := jsonparser.GetInt(value, "date")
+	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
+		tradeId, _ := json.GetInt(value, "tid")
+		tradeType, _ := json.GetString(value, "type")
+		amountString, _ := json.GetString(value, "amount")
+		priceString, _ := json.GetString(value, "price")
+		time, _ := json.GetInt(value, "date")
 
 		amount, _ := strconv.ParseFloat(amountString, 64)
 		price, _ := strconv.ParseFloat(priceString, 64)
@@ -175,12 +175,12 @@ func GetDepth(symbol string, size uint8) (*Depth, error) {
 	}
 
 	body := resp.Body()
-	time, _ := jsonparser.GetInt(body, "timestamp")
-	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	time, _ := json.GetInt(body, "timestamp")
+	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
 
 	}, "asks")
 
-	jsonparser.ArrayEach(body, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
 
 	}, "bids")
 
