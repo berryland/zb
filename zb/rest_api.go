@@ -21,21 +21,21 @@ type SymbolConfig struct {
 	PriceScale  byte
 }
 
-func (c *RestClient) GetSymbols() (*map[string]SymbolConfig, error) {
+func (c *RestClient) GetSymbols() (map[string]*SymbolConfig, error) {
 	resp, err := doGet(DataApiUrl + "markets")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	configs := map[string]SymbolConfig{}
+	configs := map[string]*SymbolConfig{}
 	json.ObjectEach(resp.Body(), func(key []byte, value []byte, dataType json.ValueType, offset int) error {
 		symbol, _ := json.ParseString(key)
 		amountScale, _ := json.GetInt(value, "amountScale")
 		priceScale, _ := json.GetInt(value, "priceScale")
-		configs[symbol] = SymbolConfig{byte(amountScale), byte(priceScale)}
+		configs[symbol] = &SymbolConfig{byte(amountScale), byte(priceScale)}
 		return nil
 	})
-	return &configs, nil
+	return configs, nil
 }
 
 type Quote struct {
@@ -89,7 +89,7 @@ type Kline struct {
 	Time   uint64
 }
 
-func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) (*[]Kline, error) {
+func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) ([]*Kline, error) {
 	u, _ := url.Parse(DataApiUrl + "kline")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -103,7 +103,7 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		return nil, errors.WithStack(err)
 	}
 
-	var klines []Kline
+	var klines []*Kline
 	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
 		time, _ := json.GetInt(value, "[0]")
 		open, _ := json.GetFloat(value, "[1]")
@@ -111,10 +111,10 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		low, _ := json.GetFloat(value, "[3]")
 		close, _ := json.GetFloat(value, "[4]")
 		volume, _ := json.GetFloat(value, "[5]")
-		klines = append(klines, Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
+		klines = append(klines, &Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
 	}, "data")
 
-	return &klines, nil
+	return klines, nil
 }
 
 type Trade struct {
@@ -125,7 +125,7 @@ type Trade struct {
 	Time      uint64
 }
 
-func (c *RestClient) GetTrades(symbol string, since uint64) (*[]Trade, error) {
+func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 	u, _ := url.Parse(DataApiUrl + "trades")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -137,7 +137,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) (*[]Trade, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	var trades []Trade
+	var trades []*Trade
 	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
 		tradeId, _ := json.GetInt(value, "tid")
 		tradeType, _ := json.GetString(value, "type")
@@ -148,15 +148,15 @@ func (c *RestClient) GetTrades(symbol string, since uint64) (*[]Trade, error) {
 		amount, _ := strconv.ParseFloat(amountString, 64)
 		price, _ := strconv.ParseFloat(priceString, 64)
 
-		trades = append(trades, Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
+		trades = append(trades, &Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
 	})
 
-	return &trades, nil
+	return trades, nil
 }
 
 type Depth struct {
-	Asks []DepthEntry
-	Bids []DepthEntry
+	Asks []*DepthEntry
+	Bids []*DepthEntry
 	Time uint64
 }
 
@@ -184,12 +184,12 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
 }
 
-func getDepthEntries(value []byte, keys ...string) []DepthEntry {
-	var entry []DepthEntry
+func getDepthEntries(value []byte, keys ...string) []*DepthEntry {
+	var entry []*DepthEntry
 	json.ArrayEach(value, func(value []byte, dataType json.ValueType, offset int, err error) {
 		price, _ := json.GetFloat(value, "[0]")
 		volume, _ := json.GetFloat(value, "[1]")
-		entry = append(entry, DepthEntry{Price: price, Volume: volume})
+		entry = append(entry, &DepthEntry{Price: price, Volume: volume})
 	}, keys...)
 	return entry
 }
