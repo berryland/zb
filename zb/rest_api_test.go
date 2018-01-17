@@ -6,22 +6,22 @@ import (
 )
 
 func TestGetSymbols(t *testing.T) {
-	GetSymbols()
+	RestClient{}.GetSymbols()
 }
 
 func TestGetLatestQuote(t *testing.T) {
-	quote, _ := GetLatestQuote("btc_usdt")
+	quote, _ := RestClient{}.GetLatestQuote("btc_usdt")
 	assert.True(t, quote.Last > 0)
 }
 
 func TestGetKlines(t *testing.T) {
-	GetKlines("btc_usdt", "5min", 1516029900000, 20)
+	RestClient{}.GetKlines("btc_usdt", "5min", 1516029900000, 20)
 }
 
 func TestGetTrades(t *testing.T) {
-	GetTrades("btc_usdt", 0)
+	RestClient{}.GetTrades("btc_usdt", 0)
 }
 
 func TestGetDepth(t *testing.T) {
-	GetDepth("btc_usdt", 10)
+	RestClient{}.GetDepth("btc_usdt", 10)
 }

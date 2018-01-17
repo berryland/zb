@@ -13,12 +13,15 @@ const (
 	TradeApiUrl = "https://trade.zb.com/api/"
 )
 
+type RestClient struct {
+}
+
 type SymbolConfig struct {
 	AmountScale byte
 	PriceScale  byte
 }
 
-func GetSymbols() (*map[string]SymbolConfig, error) {
+func (c *RestClient) GetSymbols() (*map[string]SymbolConfig, error) {
 	resp, err := doGet(DataApiUrl + "markets")
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -45,7 +48,7 @@ type Quote struct {
 	Time   uint64
 }
 
-func GetLatestQuote(symbol string) (*Quote, error) {
+func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 	u, _ := url.Parse(DataApiUrl + "ticker")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -86,7 +89,7 @@ type Kline struct {
 	Time   uint64
 }
 
-func GetKlines(symbol string, period string, since uint64, size uint16) (*[]Kline, error) {
+func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) (*[]Kline, error) {
 	u, _ := url.Parse(DataApiUrl + "kline")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -122,7 +125,7 @@ type Trade struct {
 	Time      uint64
 }
 
-func GetTrades(symbol string, since uint64) (*[]Trade, error) {
+func (c *RestClient) GetTrades(symbol string, since uint64) (*[]Trade, error) {
 	u, _ := url.Parse(DataApiUrl + "trades")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -162,7 +165,7 @@ type DepthEntry struct {
 	Volume float64
 }
 
-func GetDepth(symbol string, size uint8) (*Depth, error) {
+func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 	u, _ := url.Parse(DataApiUrl + "depth")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -180,6 +183,7 @@ func GetDepth(symbol string, size uint8) (*Depth, error) {
 
 	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
 }
+
 func getDepthEntries(value []byte, keys ...string) []DepthEntry {
 	var entry []DepthEntry
 	json.ArrayEach(value, func(value []byte, dataType json.ValueType, offset int, err error) {
