@@ -159,7 +159,7 @@ type Depth struct {
 
 type DepthEntry struct {
 	Price  float64
-	Amount float64
+	Volume float64
 }
 
 func GetDepth(symbol string, size uint8) (*Depth, error) {
@@ -176,15 +176,18 @@ func GetDepth(symbol string, size uint8) (*Depth, error) {
 
 	body := resp.Body()
 	time, _ := json.GetInt(body, "timestamp")
-	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
+	asks, bids := getDepthEntries(body, "asks"), getDepthEntries(body, "bids")
 
-	}, "asks")
-
-	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
-
-	}, "bids")
-
-	return &Depth{Time: uint64(time)}, nil
+	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
+}
+func getDepthEntries(value []byte, keys ...string) []DepthEntry {
+	var entry []DepthEntry
+	json.ArrayEach(value, func(value []byte, dataType json.ValueType, offset int, err error) {
+		price, _ := json.GetFloat(value, "[0]")
+		volume, _ := json.GetFloat(value, "[1]")
+		entry = append(entry, DepthEntry{Price: price, Volume: volume})
+	}, keys...)
+	return entry
 }
 
 func doGet(url string) (*fasthttp.Response, error) {

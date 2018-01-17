@@ -21,3 +21,7 @@ func TestGetKlines(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	GetTrades("btc_usdt", 0)
 }
+
+func TestGetDepth(t *testing.T) {
+	GetDepth("btc_usdt", 10)
+}
