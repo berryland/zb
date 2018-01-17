@@ -16,6 +16,10 @@ const (
 type RestClient struct {
 }
 
+func NewRestClient() *RestClient {
+	return &RestClient{}
+}
+
 type SymbolConfig struct {
 	AmountScale byte
 	PriceScale  byte
@@ -27,8 +31,14 @@ func (c *RestClient) GetSymbols() (map[string]*SymbolConfig, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	body := resp.Body()
+	err = extractError(body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	configs := map[string]*SymbolConfig{}
-	json.ObjectEach(resp.Body(), func(key []byte, value []byte, dataType json.ValueType, offset int) error {
+	json.ObjectEach(body, func(key []byte, value []byte, dataType json.ValueType, offset int) error {
 		symbol, _ := json.ParseString(key)
 		amountScale, _ := json.GetInt(value, "amountScale")
 		priceScale, _ := json.GetInt(value, "priceScale")
@@ -60,6 +70,11 @@ func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 	}
 
 	body := resp.Body()
+	err = extractError(body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	ticker, _, _, _ := json.Get(body, "ticker")
 	volumeString, _ := json.GetString(ticker, "vol")
 	lastString, _ := json.GetString(ticker, "last")
@@ -103,8 +118,14 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		return nil, errors.WithStack(err)
 	}
 
+	body := resp.Body()
+	err = extractError(body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	var klines []*Kline
-	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
+	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
 		time, _ := json.GetInt(value, "[0]")
 		open, _ := json.GetFloat(value, "[1]")
 		high, _ := json.GetFloat(value, "[2]")
@@ -137,8 +158,14 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	body := resp.Body()
+	err = extractError(body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	var trades []*Trade
-	json.ArrayEach(resp.Body(), func(value []byte, dataType json.ValueType, offset int, err error) {
+	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
 		tradeId, _ := json.GetInt(value, "tid")
 		tradeType, _ := json.GetString(value, "type")
 		amountString, _ := json.GetString(value, "amount")
@@ -178,6 +205,11 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 	}
 
 	body := resp.Body()
+	err = extractError(body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	time, _ := json.GetInt(body, "timestamp")
 	asks, bids := getDepthEntries(body, "asks"), getDepthEntries(body, "bids")
 
@@ -192,6 +224,14 @@ func getDepthEntries(value []byte, keys ...string) []*DepthEntry {
 		entry = append(entry, &DepthEntry{Price: price, Volume: volume})
 	}, keys...)
 	return entry
+}
+
+func extractError(value []byte) error {
+	msg, err := json.GetString(value, "error")
+	if err == json.KeyPathNotFoundError {
+		return nil
+	}
+	return &ApiError{Code: 1001, Message: msg}
 }
 
 func doGet(url string) (*fasthttp.Response, error) {
