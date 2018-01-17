@@ -6,6 +6,10 @@ import (
 	"github.com/valyala/fasthttp"
 	"net/url"
 	"strconv"
+	"crypto/sha1"
+	"crypto/hmac"
+	"crypto/md5"
+	"fmt"
 )
 
 const (
@@ -224,6 +228,11 @@ func getDepthEntries(value []byte, keys ...string) []*DepthEntry {
 		entry = append(entry, &DepthEntry{Price: price, Volume: volume})
 	}, keys...)
 	return entry
+}
+
+func GetAccount(accessKey string, secretKey string) error {
+	hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
+	return nil
 }
 
 func extractError(value []byte) error {
