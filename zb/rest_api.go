@@ -10,6 +10,7 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"fmt"
+	"time"
 )
 
 const (
@@ -186,8 +187,8 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 }
 
 type Depth struct {
-	Asks []*DepthEntry
-	Bids []*DepthEntry
+	Asks []DepthEntry
+	Bids []DepthEntry
 	Time uint64
 }
 
@@ -220,19 +221,45 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
 }
 
-func getDepthEntries(value []byte, keys ...string) []*DepthEntry {
-	var entry []*DepthEntry
+func getDepthEntries(value []byte, keys ...string) []DepthEntry {
+	var entry []DepthEntry
 	json.ArrayEach(value, func(value []byte, dataType json.ValueType, offset int, err error) {
 		price, _ := json.GetFloat(value, "[0]")
 		volume, _ := json.GetFloat(value, "[1]")
-		entry = append(entry, &DepthEntry{Price: price, Volume: volume})
+		entry = append(entry, DepthEntry{Price: price, Volume: volume})
 	}, keys...)
 	return entry
 }
 
-func GetAccount(accessKey string, secretKey string) error {
-	hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
+func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
+	params := "accesskey=" + accessKey + "&method=getAccountInfo"
+	//h := hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
+	//h.Write([]byte(params))
+	//sign := fmt.Sprintf("%x", h.Sum(nil))
+
+	u, _ := url.Parse(TradeApiUrl + "getAccountInfo")
+	q := u.Query()
+	q.Set("accesskey", accessKey)
+	q.Set("method", "getAccountInfo")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := doGet(u.String())
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	return nil
+}
+
+func sign(secretKey string, params map[string][]string) string {
+	keys := [len(params)]string{}
+
+
+	h := hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
+	h.Write([]byte(params))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func extractError(value []byte) error {
