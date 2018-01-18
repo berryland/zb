@@ -11,6 +11,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"time"
+	"sort"
+	"strings"
 )
 
 const (
@@ -31,7 +33,7 @@ type SymbolConfig struct {
 }
 
 func (c *RestClient) GetSymbols() (map[string]*SymbolConfig, error) {
-	resp, err := doGet(DataApiUrl + "markets")
+	resp, err := c.doGet(DataApiUrl + "markets")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -69,7 +71,7 @@ func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 	q.Set("market", symbol)
 	u.RawQuery = q.Encode()
 
-	resp, err := doGet(u.String())
+	resp, err := c.doGet(u.String())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -118,7 +120,7 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 	q.Set("size", strconv.FormatUint(uint64(size), 10))
 	u.RawQuery = q.Encode()
 
-	resp, err := doGet(u.String())
+	resp, err := c.doGet(u.String())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -158,7 +160,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 	q.Set("since", strconv.FormatUint(since, 10))
 	u.RawQuery = q.Encode()
 
-	resp, err := doGet(u.String())
+	resp, err := c.doGet(u.String())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -204,7 +206,7 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 	q.Set("size", strconv.FormatUint(uint64(size), 10))
 	u.RawQuery = q.Encode()
 
-	resp, err := doGet(u.String())
+	resp, err := c.doGet(u.String())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -232,7 +234,7 @@ func getDepthEntries(value []byte, keys ...string) []DepthEntry {
 }
 
 func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
-	params := "accesskey=" + accessKey + "&method=getAccountInfo"
+	//params := "accesskey=" + accessKey + "&method=getAccountInfo"
 	//h := hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
 	//h.Write([]byte(params))
 	//sign := fmt.Sprintf("%x", h.Sum(nil))
@@ -245,21 +247,37 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
 	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	u.RawQuery = q.Encode()
 
-	resp, err := doGet(u.String())
+	resp, err := c.doGet(u.String())
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
+	//TODO
+	println(string(resp.Body()))
 	return nil
 }
 
 func sign(secretKey string, params map[string][]string) string {
-	keys := [len(params)]string{}
-
-
 	h := hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
-	h.Write([]byte(params))
+	h.Write([]byte(buildQueryString(params)))
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func buildQueryString(params map[string][]string) string {
+	keys := make([]string, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var kvs []string
+	for _, k := range keys {
+		for _, v := range params[k] {
+			kvs = append(kvs, fmt.Sprintf("%v=%v", k, v))
+		}
+	}
+
+	return strings.Join(kvs, "&")
 }
 
 func extractError(value []byte) error {
@@ -270,7 +288,7 @@ func extractError(value []byte) error {
 	return &ApiError{Code: 1001, Message: msg}
 }
 
-func doGet(url string) (*fasthttp.Response, error) {
+func (c *RestClient) doGet(url string) (*fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(url)
 	resp := fasthttp.AcquireResponse()
