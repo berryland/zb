@@ -3,7 +3,6 @@ package zb
 import (
 	json "github.com/buger/jsonparser"
 	"github.com/pkg/errors"
-	"github.com/valyala/fasthttp"
 	"net/url"
 	"strconv"
 	"crypto/sha1"
@@ -13,6 +12,8 @@ import (
 	"time"
 	"sort"
 	"strings"
+	"net/http"
+	"io/ioutil"
 )
 
 const (
@@ -21,10 +22,13 @@ const (
 )
 
 type RestClient struct {
+	client *http.Client
 }
 
 func NewRestClient() *RestClient {
-	return &RestClient{}
+	c := new(RestClient)
+	c.client = &http.Client{}
+	return c
 }
 
 type SymbolConfig struct {
@@ -38,14 +42,14 @@ func (c *RestClient) GetSymbols() (map[string]*SymbolConfig, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	body := resp.Body()
-	err = extractError(body)
+	bytes := resp.Bytes()
+	err = extractError(bytes)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	configs := map[string]*SymbolConfig{}
-	json.ObjectEach(body, func(key []byte, value []byte, dataType json.ValueType, offset int) error {
+	json.ObjectEach(bytes, func(key []byte, value []byte, dataType json.ValueType, offset int) error {
 		symbol, _ := json.ParseString(key)
 		amountScale, _ := json.GetInt(value, "amountScale")
 		priceScale, _ := json.GetInt(value, "priceScale")
@@ -76,20 +80,20 @@ func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	body := resp.Body()
-	err = extractError(body)
+	bytes := resp.Bytes()
+	err = extractError(bytes)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	ticker, _, _, _ := json.Get(body, "ticker")
+	ticker, _, _, _ := json.Get(bytes, "ticker")
 	volumeString, _ := json.GetString(ticker, "vol")
 	lastString, _ := json.GetString(ticker, "last")
 	sellString, _ := json.GetString(ticker, "sell")
 	buyString, _ := json.GetString(ticker, "buy")
 	highString, _ := json.GetString(ticker, "high")
 	lowString, _ := json.GetString(ticker, "low")
-	timeString, _ := json.GetString(body, "date")
+	timeString, _ := json.GetString(bytes, "date")
 
 	volume, _ := strconv.ParseFloat(volumeString, 64)
 	last, _ := strconv.ParseFloat(lastString, 64)
@@ -125,14 +129,14 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		return nil, errors.WithStack(err)
 	}
 
-	body := resp.Body()
-	err = extractError(body)
+	bytes := resp.Bytes()
+	err = extractError(bytes)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	var klines []*Kline
-	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
+	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
 		time, _ := json.GetInt(value, "[0]")
 		open, _ := json.GetFloat(value, "[1]")
 		high, _ := json.GetFloat(value, "[2]")
@@ -165,14 +169,14 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	body := resp.Body()
-	err = extractError(body)
+	bytes := resp.Bytes()
+	err = extractError(bytes)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	var trades []*Trade
-	json.ArrayEach(body, func(value []byte, dataType json.ValueType, offset int, err error) {
+	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
 		tradeId, _ := json.GetInt(value, "tid")
 		tradeType, _ := json.GetString(value, "type")
 		amountString, _ := json.GetString(value, "amount")
@@ -211,14 +215,14 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	body := resp.Body()
-	err = extractError(body)
+	bytes := resp.Bytes()
+	err = extractError(bytes)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	time, _ := json.GetInt(body, "timestamp")
-	asks, bids := getDepthEntries(body, "asks"), getDepthEntries(body, "bids")
+	time, _ := json.GetInt(bytes, "timestamp")
+	asks, bids := getDepthEntries(bytes, "asks"), getDepthEntries(bytes, "bids")
 
 	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
 }
@@ -253,7 +257,7 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
 	}
 
 	//TODO
-	println(string(resp.Body()))
+	println(string(resp.Bytes()))
 	return nil
 }
 
@@ -288,11 +292,15 @@ func extractError(value []byte) error {
 	return &ApiError{Code: 1001, Message: msg}
 }
 
-func (c *RestClient) doGet(url string) (*fasthttp.Response, error) {
-	req := fasthttp.AcquireRequest()
-	req.SetRequestURI(url)
-	resp := fasthttp.AcquireResponse()
-	client := &fasthttp.Client{}
-	err := client.Do(req, resp)
-	return resp, errors.WithStack(err)
+type response http.Response
+
+func (r *response) Bytes() ([]byte) {
+	bytes, _ := ioutil.ReadAll(r.Body)
+	return bytes
+}
+
+func (c *RestClient) doGet(url string) (*response, error) {
+	resp, err := c.client.Get(url)
+	r := response(*resp)
+	return &r, err
 }

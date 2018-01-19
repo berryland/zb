@@ -14,24 +14,6 @@
   version = "v1.1.0"
 
 [[projects]]
-  name = "github.com/klauspost/compress"
-  packages = ["flate","gzip","zlib"]
-  revision = "6c8db69c4b49dd4df1fff66996cf556176d0b9bf"
-  version = "v1.2.1"
-
-[[projects]]
-  name = "github.com/klauspost/cpuid"
-  packages = ["."]
-  revision = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/klauspost/crc32"
-  packages = ["."]
-  revision = "cb6bfca970f6908083f26f39a79009d608efd5cd"
-  version = "v1.1"
-
-[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -49,15 +31,9 @@
   revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
   version = "v1.2.0"
 
-[[projects]]
-  name = "github.com/valyala/fasthttp"
-  packages = [".","fasthttputil"]
-  revision = "d42167fd04f636e20b005e9934159e95454233c7"
-  version = "v20160617"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "15c82f7d782dcdebf8edc5339f3c1f9a77ce98d9423f97eff727163a388226b9"
+  inputs-digest = "7156566c0cda6bfadc75341c3b0483b82c96c07e6be29fee920d0cedf0a9981c"
   solver-name = "gps-cdcl"
   solver-version = 1
