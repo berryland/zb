@@ -36,24 +36,24 @@ type SymbolConfig struct {
 	PriceScale  byte
 }
 
-func (c *RestClient) GetSymbols() (map[string]*SymbolConfig, error) {
+func (c *RestClient) GetSymbols() (map[string]SymbolConfig, error) {
+	configs := map[string]SymbolConfig{}
 	resp, err := c.doGet(DataApiUrl + "markets")
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return configs, errors.WithStack(err)
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return configs, errors.WithStack(err)
 	}
 
-	configs := map[string]*SymbolConfig{}
 	json.ObjectEach(bytes, func(key []byte, value []byte, dataType json.ValueType, offset int) error {
 		symbol, _ := json.ParseString(key)
 		amountScale, _ := json.GetInt(value, "amountScale")
 		priceScale, _ := json.GetInt(value, "priceScale")
-		configs[symbol] = &SymbolConfig{byte(amountScale), byte(priceScale)}
+		configs[symbol] = SymbolConfig{byte(amountScale), byte(priceScale)}
 		return nil
 	})
 	return configs, nil
@@ -69,7 +69,7 @@ type Quote struct {
 	Time   uint64
 }
 
-func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
+func (c *RestClient) GetLatestQuote(symbol string) (Quote, error) {
 	u, _ := url.Parse(DataApiUrl + "ticker")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -77,13 +77,13 @@ func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return Quote{}, errors.WithStack(err)
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return Quote{}, errors.WithStack(err)
 	}
 
 	ticker, _, _, _ := json.Get(bytes, "ticker")
@@ -103,7 +103,7 @@ func (c *RestClient) GetLatestQuote(symbol string) (*Quote, error) {
 	low, _ := strconv.ParseFloat(lowString, 64)
 	time, _ := strconv.ParseUint(timeString, 10, 64)
 
-	return &Quote{Volume: volume, Last: last, Sell: sell, Buy: buy, High: high, Low: low, Time: time}, nil
+	return Quote{Volume: volume, Last: last, Sell: sell, Buy: buy, High: high, Low: low, Time: time}, nil
 }
 
 type Kline struct {
@@ -115,7 +115,8 @@ type Kline struct {
 	Time   uint64
 }
 
-func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) ([]*Kline, error) {
+func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) ([]Kline, error) {
+	var klines []Kline
 	u, _ := url.Parse(DataApiUrl + "kline")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -126,16 +127,15 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return klines, errors.WithStack(err)
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return klines, errors.WithStack(err)
 	}
 
-	var klines []*Kline
 	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
 		time, _ := json.GetInt(value, "[0]")
 		open, _ := json.GetFloat(value, "[1]")
@@ -143,7 +143,7 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		low, _ := json.GetFloat(value, "[3]")
 		close, _ := json.GetFloat(value, "[4]")
 		volume, _ := json.GetFloat(value, "[5]")
-		klines = append(klines, &Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
+		klines = append(klines, Kline{Time: uint64(time), Open: open, High: high, Low: low, Close: close, Volume: volume})
 	}, "data")
 
 	return klines, nil
@@ -157,7 +157,8 @@ type Trade struct {
 	Time      uint64
 }
 
-func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
+func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
+	var trades []Trade
 	u, _ := url.Parse(DataApiUrl + "trades")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -166,16 +167,15 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return trades, errors.WithStack(err)
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return trades, errors.WithStack(err)
 	}
 
-	var trades []*Trade
 	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
 		tradeId, _ := json.GetInt(value, "tid")
 		tradeType, _ := json.GetString(value, "type")
@@ -186,7 +186,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]*Trade, error) {
 		amount, _ := strconv.ParseFloat(amountString, 64)
 		price, _ := strconv.ParseFloat(priceString, 64)
 
-		trades = append(trades, &Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
+		trades = append(trades, Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
 	})
 
 	return trades, nil
@@ -203,7 +203,7 @@ type DepthEntry struct {
 	Volume float64
 }
 
-func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
+func (c *RestClient) GetDepth(symbol string, size uint8) (Depth, error) {
 	u, _ := url.Parse(DataApiUrl + "depth")
 	q := u.Query()
 	q.Set("market", symbol)
@@ -212,19 +212,19 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (*Depth, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return Depth{}, errors.WithStack(err)
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return Depth{}, errors.WithStack(err)
 	}
 
 	time, _ := json.GetInt(bytes, "timestamp")
 	asks, bids := getDepthEntries(bytes, "asks"), getDepthEntries(bytes, "bids")
 
-	return &Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
+	return Depth{Asks: asks, Bids: bids, Time: uint64(time)}, nil
 }
 
 func getDepthEntries(value []byte, keys ...string) []DepthEntry {
@@ -237,12 +237,29 @@ func getDepthEntries(value []byte, keys ...string) []DepthEntry {
 	return entry
 }
 
-func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
-	//params := "accesskey=" + accessKey + "&method=getAccountInfo"
-	//h := hmac.New(md5.New, []byte(fmt.Sprintf("%x", sha1.Sum([]byte(secretKey)))))
-	//h.Write([]byte(params))
-	//sign := fmt.Sprintf("%x", h.Sum(nil))
+type Account struct {
+	Username             string
+	TradePasswordEnabled bool
+	AuthGoogleEnabled    bool
+	AuthMobileEnabled    bool
+	Assets               []Asset
+}
 
+type Asset struct {
+	Freeze    float64
+	Available float64
+	Coin      Coin
+}
+
+type Coin struct {
+	CnName string
+	EnName string
+	Key    string
+	Unit   string
+	Scale  uint8
+}
+
+func (c *RestClient) GetAccount(accessKey string, secretKey string) (Account, error) {
 	u, _ := url.Parse(TradeApiUrl + "getAccountInfo")
 	q := u.Query()
 	q.Set("accesskey", accessKey)
@@ -253,12 +270,31 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) error {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return errors.WithStack(err)
+		return Account{}, errors.WithStack(err)
 	}
 
-	//TODO
-	println(string(resp.Bytes()))
-	return nil
+	var assets []Asset
+	result, _, _, _ := json.Get(resp.Bytes(), "result")
+	json.ArrayEach(result, func(value []byte, dataType json.ValueType, offset int, err error) {
+		freezeString, _ := json.GetString(value, "freez")
+		freeze, _ := strconv.ParseFloat(freezeString, 64)
+		availableString, _ := json.GetString(value, "available")
+		available, _ := strconv.ParseFloat(availableString, 64)
+		coinCnName, _ := json.GetString(value, "cnName")
+		coinEnName, _ := json.GetString(value, "enName")
+		coinKey, _ := json.GetString(value, "key")
+		coinUnit, _ := json.GetString(value, "unitTag")
+		coinScale, _ := json.GetInt(value, "unitDecimal")
+		assets = append(assets, Asset{Freeze: freeze, Available: available, Coin: Coin{CnName: coinCnName, EnName: coinEnName, Key: coinKey, Unit: coinUnit, Scale: uint8(coinScale)}})
+	}, "coins")
+
+	base, _, _, _ := json.Get(result, "base")
+	username, _ := json.GetString(base, "username")
+	tradePasswordEnabled, _ := json.GetBoolean(base, "trade_password_enabled")
+	authGoogleEnabled, _ := json.GetBoolean(base, "auth_google_enabled")
+	authMobileEnabled, _ := json.GetBoolean(base, "auth_mobile_enabled")
+
+	return Account{Username: username, TradePasswordEnabled: tradePasswordEnabled, AuthGoogleEnabled: authGoogleEnabled, AuthMobileEnabled: authMobileEnabled, Assets: assets}, nil
 }
 
 func sign(secretKey string, params map[string][]string) string {
