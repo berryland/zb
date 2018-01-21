@@ -39,3 +39,11 @@ func TestRestClient_GetDepth(t *testing.T) {
 func TestRestClient_GetAccount(t *testing.T) {
 	NewRestClient().GetAccount(accessKey, secretKey)
 }
+
+func TestRestClient_GetOrders(t *testing.T) {
+	NewRestClient().GetOrders("btc_usdt", All, 0, 10, accessKey, secretKey)
+}
+
+func TestRestClient_GetOrder(t *testing.T) {
+	NewRestClient().GetOrder("btc_usdt", 2018012160893558, accessKey, secretKey)
+}

@@ -2,7 +2,6 @@ package zb
 
 import (
 	json "github.com/buger/jsonparser"
-	"github.com/pkg/errors"
 	"net/url"
 	"strconv"
 	"crypto/sha1"
@@ -40,13 +39,13 @@ func (c *RestClient) GetSymbols() (map[string]SymbolConfig, error) {
 	configs := map[string]SymbolConfig{}
 	resp, err := c.doGet(DataApiUrl + "markets")
 	if err != nil {
-		return configs, errors.WithStack(err)
+		return configs, err
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return configs, errors.WithStack(err)
+		return configs, err
 	}
 
 	json.ObjectEach(bytes, func(key []byte, value []byte, dataType json.ValueType, offset int) error {
@@ -77,13 +76,13 @@ func (c *RestClient) GetLatestQuote(symbol string) (Quote, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return Quote{}, errors.WithStack(err)
+		return Quote{}, err
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return Quote{}, errors.WithStack(err)
+		return Quote{}, err
 	}
 
 	ticker, _, _, _ := json.Get(bytes, "ticker")
@@ -127,13 +126,13 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return klines, errors.WithStack(err)
+		return klines, err
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return klines, errors.WithStack(err)
+		return klines, err
 	}
 
 	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
@@ -150,11 +149,30 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 }
 
 type Trade struct {
-	TradeId   uint64
-	TradeType string
+	Id        uint64
+	TradeType TradeType
 	Price     float64
 	Amount    float64
 	Time      uint64
+}
+
+type TradeType int8
+
+const (
+	All  TradeType = iota - 1
+	Sell
+	Buy
+)
+
+func ParseTradeType(string string) TradeType {
+	switch string {
+	case "buy":
+		return Buy
+	case "sell":
+		return Sell
+	default:
+		panic("Unknown trade type: " + string)
+	}
 }
 
 func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
@@ -167,17 +185,17 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return trades, errors.WithStack(err)
+		return trades, err
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return trades, errors.WithStack(err)
+		return trades, err
 	}
 
 	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
-		tradeId, _ := json.GetInt(value, "tid")
+		id, _ := json.GetInt(value, "tid")
 		tradeType, _ := json.GetString(value, "type")
 		amountString, _ := json.GetString(value, "amount")
 		priceString, _ := json.GetString(value, "price")
@@ -186,7 +204,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
 		amount, _ := strconv.ParseFloat(amountString, 64)
 		price, _ := strconv.ParseFloat(priceString, 64)
 
-		trades = append(trades, Trade{TradeId: uint64(tradeId), TradeType: tradeType, Price: price, Amount: amount, Time: uint64(time)})
+		trades = append(trades, Trade{Id: uint64(id), TradeType: ParseTradeType(tradeType), Price: price, Amount: amount, Time: uint64(time)})
 	})
 
 	return trades, nil
@@ -212,13 +230,13 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (Depth, error) {
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return Depth{}, errors.WithStack(err)
+		return Depth{}, err
 	}
 
 	bytes := resp.Bytes()
 	err = extractError(bytes)
 	if err != nil {
-		return Depth{}, errors.WithStack(err)
+		return Depth{}, err
 	}
 
 	time, _ := json.GetInt(bytes, "timestamp")
@@ -270,11 +288,17 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) (Account, er
 
 	resp, err := c.doGet(u.String())
 	if err != nil {
-		return Account{}, errors.WithStack(err)
+		return Account{}, err
+	}
+
+	bytes := resp.Bytes()
+	err = extractTradeError(bytes)
+	if err != nil {
+		return Account{}, err
 	}
 
 	var assets []Asset
-	result, _, _, _ := json.Get(resp.Bytes(), "result")
+	result, _, _, _ := json.Get(bytes, "result")
 	json.ArrayEach(result, func(value []byte, dataType json.ValueType, offset int, err error) {
 		freezeString, _ := json.GetString(value, "freez")
 		freeze, _ := strconv.ParseFloat(freezeString, 64)
@@ -295,6 +319,129 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) (Account, er
 	authMobileEnabled, _ := json.GetBoolean(base, "auth_mobile_enabled")
 
 	return Account{Username: username, TradePasswordEnabled: tradePasswordEnabled, AuthGoogleEnabled: authGoogleEnabled, AuthMobileEnabled: authMobileEnabled, Assets: assets}, nil
+}
+
+type Order struct {
+	Id          uint64
+	Price       float64
+	Average     float64
+	TotalAmount float64
+	TradeAmount float64
+	Money       float64
+	Symbol      string
+	Status      OrderStatus
+	TradeType   TradeType
+	Time        uint64
+}
+
+type OrderStatus uint8
+
+const (
+	Pending         OrderStatus = iota
+	Cancelled
+	Finished
+	PartiallyFilled
+)
+
+func (c *RestClient) GetOrder(symbol string, id uint64, accessKey string, secretKey string) (Order, error) {
+	u, _ := url.Parse(TradeApiUrl + "getOrder")
+	q := u.Query()
+	q.Set("currency", symbol)
+	q.Set("id", strconv.FormatUint(id, 10))
+	q.Set("accesskey", accessKey)
+	q.Set("method", "getOrder")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String())
+	if err != nil {
+		return Order{}, err
+	}
+
+	bytes := resp.Bytes()
+	err = extractTradeError(bytes)
+	if err != nil {
+		return Order{}, err
+	}
+
+	return parseOrder(bytes), nil
+}
+
+func (c *RestClient) GetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) ([]Order, error) {
+	u := getUrlToGetOrders(symbol, tradeType, page, size, accessKey, secretKey)
+	resp, err := c.doGet(u.String())
+	if err != nil {
+		return []Order{}, err
+	}
+
+	bytes := resp.Bytes()
+	err = extractTradeError(bytes)
+	if err != nil {
+		return []Order{}, err
+	}
+
+	var orders []Order
+	json.ArrayEach(bytes, func(value []byte, dataType json.ValueType, offset int, err error) {
+		orders = append(orders, parseOrder(value))
+	})
+
+	return orders, nil
+}
+
+func parseOrder(value []byte) Order {
+	idString, _ := json.GetString(value, "id")
+	id, _ := strconv.ParseUint(idString, 10, 64)
+	currency, _ := json.GetString(value, "currency")
+	price, _ := json.GetFloat(value, "price")
+	status, _ := json.GetInt(value, "status")
+	totalAmount, _ := json.GetFloat(value, "total_amount")
+	tradeAmount, _ := json.GetFloat(value, "trade_amount")
+	tradePrice, _ := json.GetFloat(value, "trade_price")
+	tradeMoney, _ := json.GetFloat(value, "trade_money")
+	tradeDate, _ := json.GetInt(value, "trade_date")
+	tradeType, _ := json.GetInt(value, "type")
+	return Order{Id: id, Price: price, Average: tradePrice, TotalAmount: totalAmount, TradeAmount: tradeAmount, Money: tradeMoney, Symbol: currency, Status: OrderStatus(status), TradeType: TradeType(tradeType), Time: uint64(tradeDate)}
+}
+
+func getUrlToGetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+	switch tradeType {
+	case All:
+		return getOrdersIgnoreTradeType(symbol, page, size, accessKey, secretKey)
+	case Buy, Sell:
+		return getOrdersNew(symbol, tradeType, page, size, accessKey, secretKey)
+	default:
+		panic("Unknown trade type: " + string(tradeType))
+	}
+}
+
+func getOrdersIgnoreTradeType(symbol string, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+	u, _ := url.Parse(TradeApiUrl + "getOrdersIgnoreTradeType")
+	q := u.Query()
+	q.Set("currency", symbol)
+	q.Set("pageIndex", strconv.FormatUint(page, 10))
+	q.Set("pageSize", strconv.FormatUint(uint64(size), 10))
+	q.Set("accesskey", accessKey)
+	q.Set("method", "getOrdersIgnoreTradeType")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+	return u
+}
+
+func getOrdersNew(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+	u, _ := url.Parse(TradeApiUrl + "getOrdersNew")
+	q := u.Query()
+	q.Set("currency", symbol)
+	q.Set("tradeType", strconv.FormatUint(uint64(tradeType), 8))
+	q.Set("pageIndex", strconv.FormatUint(page, 10))
+	q.Set("pageSize", strconv.FormatUint(uint64(size), 10))
+	q.Set("accesskey", accessKey)
+	q.Set("method", "getOrdersNew")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+	return u
 }
 
 func sign(secretKey string, params map[string][]string) string {
@@ -326,6 +473,15 @@ func extractError(value []byte) error {
 		return nil
 	}
 	return &ApiError{Code: 1001, Message: msg}
+}
+
+func extractTradeError(value []byte) error {
+	code, err := json.GetInt(value, "code")
+	if err == json.KeyPathNotFoundError {
+		return nil
+	}
+	msg, _ := json.GetString(value, "message")
+	return &ApiError{Code: uint16(code), Message: msg}
 }
 
 type response http.Response
