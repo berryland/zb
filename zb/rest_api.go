@@ -343,7 +343,61 @@ const (
 	PartiallyFilled
 )
 
-func (c *RestClient) GetOrder(symbol string, id uint64, accessKey string, secretKey string) (Order, error) {
+func (c *RestClient) PlaceOrder(symbol string, price, amount float64, tradeType TradeType, accessKey, secretKey string) (uint64, error) {
+	u, _ := url.Parse(TradeApiUrl + "order")
+	q := u.Query()
+	q.Set("currency", symbol)
+	q.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	q.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	q.Set("tradeType", strconv.FormatUint(uint64(tradeType), 8))
+	q.Set("accesskey", accessKey)
+	q.Set("method", "order")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String())
+	if err != nil {
+		return 0, err
+	}
+
+	bytes := resp.Bytes()
+	err = extractTradeError(bytes)
+	if err != nil {
+		return 0, err
+	}
+
+	idString, _ := json.GetString(bytes, "id")
+	id, _ := strconv.ParseUint(idString, 10, 64)
+	return id, nil
+}
+
+func (c *RestClient) CancelOrder(symbol string, id uint64, accessKey, secretKey string) error {
+	u, _ := url.Parse(TradeApiUrl + "cancelOrder")
+	q := u.Query()
+	q.Set("currency", symbol)
+	q.Set("id", strconv.FormatUint(id, 10))
+	q.Set("accesskey", accessKey)
+	q.Set("method", "cancelOrder")
+	q.Set("sign", sign(secretKey, q))
+	q.Set("reqTime", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String())
+	if err != nil {
+		return err
+	}
+
+	bytes := resp.Bytes()
+	err = extractTradeError(bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *RestClient) GetOrder(symbol string, id uint64, accessKey, secretKey string) (Order, error) {
 	u, _ := url.Parse(TradeApiUrl + "getOrder")
 	q := u.Query()
 	q.Set("currency", symbol)
@@ -368,7 +422,7 @@ func (c *RestClient) GetOrder(symbol string, id uint64, accessKey string, secret
 	return parseOrder(bytes), nil
 }
 
-func (c *RestClient) GetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) ([]Order, error) {
+func (c *RestClient) GetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey, secretKey string) ([]Order, error) {
 	u := getUrlToGetOrders(symbol, tradeType, page, size, accessKey, secretKey)
 	resp, err := c.doGet(u.String())
 	if err != nil {
@@ -404,7 +458,7 @@ func parseOrder(value []byte) Order {
 	return Order{Id: id, Price: price, Average: tradePrice, TotalAmount: totalAmount, TradeAmount: tradeAmount, TradeMoney: tradeMoney, Symbol: currency, Status: OrderStatus(status), TradeType: TradeType(tradeType), Time: uint64(tradeDate)}
 }
 
-func getUrlToGetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+func getUrlToGetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey, secretKey string) *url.URL {
 	switch tradeType {
 	case All:
 		return getOrdersIgnoreTradeType(symbol, page, size, accessKey, secretKey)
@@ -415,7 +469,7 @@ func getUrlToGetOrders(symbol string, tradeType TradeType, page uint64, size uin
 	}
 }
 
-func getOrdersIgnoreTradeType(symbol string, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+func getOrdersIgnoreTradeType(symbol string, page uint64, size uint16, accessKey, secretKey string) *url.URL {
 	u, _ := url.Parse(TradeApiUrl + "getOrdersIgnoreTradeType")
 	q := u.Query()
 	q.Set("currency", symbol)
@@ -429,7 +483,7 @@ func getOrdersIgnoreTradeType(symbol string, page uint64, size uint16, accessKey
 	return u
 }
 
-func getOrdersNew(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
+func getOrdersNew(symbol string, tradeType TradeType, page uint64, size uint16, accessKey, secretKey string) *url.URL {
 	u, _ := url.Parse(TradeApiUrl + "getOrdersNew")
 	q := u.Query()
 	q.Set("currency", symbol)
@@ -477,7 +531,7 @@ func extractError(value []byte) error {
 
 func extractTradeError(value []byte) error {
 	code, err := json.GetInt(value, "code")
-	if err == json.KeyPathNotFoundError {
+	if err == json.KeyPathNotFoundError || code == 1000 {
 		return nil
 	}
 	msg, _ := json.GetString(value, "message")

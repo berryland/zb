@@ -47,3 +47,11 @@ func TestRestClient_GetOrders(t *testing.T) {
 func TestRestClient_GetOrder(t *testing.T) {
 	NewRestClient().GetOrder("btc_usdt", 2018012160893558, accessKey, secretKey)
 }
+
+func TestRestClient_PlaceOrder(t *testing.T) {
+	NewRestClient().PlaceOrder("btc_usdt", 15000, 0.01, Sell, accessKey, secretKey)
+}
+
+func TestRestClient_CancelOrder(t *testing.T) {
+	NewRestClient().CancelOrder("btc_usdt", 2018012261281063, accessKey, secretKey)
+}
