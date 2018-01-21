@@ -327,7 +327,7 @@ type Order struct {
 	Average     float64
 	TotalAmount float64
 	TradeAmount float64
-	Money       float64
+	TradeMoney  float64
 	Symbol      string
 	Status      OrderStatus
 	TradeType   TradeType
@@ -401,7 +401,7 @@ func parseOrder(value []byte) Order {
 	tradeMoney, _ := json.GetFloat(value, "trade_money")
 	tradeDate, _ := json.GetInt(value, "trade_date")
 	tradeType, _ := json.GetInt(value, "type")
-	return Order{Id: id, Price: price, Average: tradePrice, TotalAmount: totalAmount, TradeAmount: tradeAmount, Money: tradeMoney, Symbol: currency, Status: OrderStatus(status), TradeType: TradeType(tradeType), Time: uint64(tradeDate)}
+	return Order{Id: id, Price: price, Average: tradePrice, TotalAmount: totalAmount, TradeAmount: tradeAmount, TradeMoney: tradeMoney, Symbol: currency, Status: OrderStatus(status), TradeType: TradeType(tradeType), Time: uint64(tradeDate)}
 }
 
 func getUrlToGetOrders(symbol string, tradeType TradeType, page uint64, size uint16, accessKey string, secretKey string) *url.URL {
