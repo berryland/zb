@@ -1,5 +1,7 @@
 # A golang client for ZB.com
 
+[![Build Status](https://travis-ci.org/pojozhang/exchange.svg?branch=master)](https://travis-ci.org/pojozhang/exchange)
+
 ## Set Up
 ```bash
 go get -u github.com/pojozhang/exchange/zb
