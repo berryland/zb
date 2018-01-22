@@ -1,0 +1,12 @@
+language: go
+
+go:
+  - 1.9.x
+  - master
+  
+before_script:
+  go get -u github.com/golang/dep/cmd/dep
+  cd ./zb & dep ensure
+  
+script:
+  go build
