@@ -4,7 +4,7 @@
 
 ## Set Up
 ```bash
-go get -u github.com/pojozhang/exchange/zb
+dep ensure -add github.com/pojozhang/exchange/zb
 ```
 
 ## Usage
