@@ -8,8 +8,8 @@ import (
 func TestWebSocketClient_SubscribeQuote(t *testing.T) {
 	c := NewWebSocketClient()
 	c.Start()
-	c.SubscribeQuote("btc_usdt", func(quote *Quote) {
-		println(quote.Last)
+	c.SubscribeQuote("btc_usdt", func(quote Quote) {
+		println(quote.Time)
 	})
 
 	for {

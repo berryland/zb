@@ -17,7 +17,7 @@ type WebSocketClient struct {
 }
 
 func NewWebSocketClient() *WebSocketClient {
-	return &WebSocketClient{running: false}
+	return &WebSocketClient{running: false, decoders: make(map[string]func([]byte) interface{}), callbacks: make(map[string]func(interface{}))}
 }
 
 type eventMessage struct {
@@ -40,12 +40,12 @@ func (c *WebSocketClient) Start() {
 
 	go func() {
 		for {
-			if _, bytes, err := c.conn.ReadMessage(); err != nil {
+			if _, bytes, err := c.conn.ReadMessage(); err == nil {
 				channel, _ := jsonparser.GetString(bytes, "channel")
 				if decoder, ok := c.decoders[channel]; ok {
 					value := decoder(bytes)
 					if callback, ok := c.callbacks[channel]; ok {
-						callback(&value)
+						callback(value)
 					}
 				}
 			}
@@ -62,13 +62,13 @@ func (c *WebSocketClient) Stop() {
 	c.conn.Close()
 }
 
-func (c *WebSocketClient) SubscribeQuote(symbol string, callback func(quote *Quote)) {
+func (c *WebSocketClient) SubscribeQuote(symbol string, callback func(quote Quote)) {
 	channel := strings.Replace(symbol, "_", "", 1) + "_ticker"
 	c.registerDecoder(channel, func(value []byte) interface{} {
 		return marshalQuote(value)
 	})
 	c.registerCallback(channel, func(v interface{}) {
-		callback(v.(*Quote))
+		callback(v.(Quote))
 	})
 	c.conn.WriteJSON(eventMessage{Event: "addChannel", Channel: channel})
 }
