@@ -42,7 +42,7 @@ func (c *RestClient) GetSymbols() (map[string]SymbolConfig, error) {
 		return configs, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractError(bytes)
 	if err != nil {
 		return configs, err
@@ -79,7 +79,7 @@ func (c *RestClient) GetLatestQuote(symbol string) (Quote, error) {
 		return Quote{}, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractError(bytes)
 	if err != nil {
 		return Quote{}, err
@@ -129,7 +129,7 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 		return klines, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractError(bytes)
 	if err != nil {
 		return klines, err
@@ -188,7 +188,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
 		return trades, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractError(bytes)
 	if err != nil {
 		return trades, err
@@ -233,7 +233,7 @@ func (c *RestClient) GetDepth(symbol string, size uint8) (Depth, error) {
 		return Depth{}, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractError(bytes)
 	if err != nil {
 		return Depth{}, err
@@ -291,7 +291,7 @@ func (c *RestClient) GetAccount(accessKey string, secretKey string) (Account, er
 		return Account{}, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractTradeError(bytes)
 	if err != nil {
 		return Account{}, err
@@ -361,7 +361,7 @@ func (c *RestClient) PlaceOrder(symbol string, price, amount float64, tradeType 
 		return 0, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractTradeError(bytes)
 	if err != nil {
 		return 0, err
@@ -388,7 +388,7 @@ func (c *RestClient) CancelOrder(symbol string, id uint64, accessKey, secretKey 
 		return err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractTradeError(bytes)
 	if err != nil {
 		return err
@@ -413,7 +413,7 @@ func (c *RestClient) GetOrder(symbol string, id uint64, accessKey, secretKey str
 		return Order{}, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractTradeError(bytes)
 	if err != nil {
 		return Order{}, err
@@ -429,7 +429,7 @@ func (c *RestClient) GetOrders(symbol string, tradeType TradeType, page uint64, 
 		return []Order{}, err
 	}
 
-	bytes := resp.Bytes()
+	bytes := resp.ReadBytes()
 	err = extractTradeError(bytes)
 	if err != nil {
 		return []Order{}, err
@@ -540,7 +540,8 @@ func extractTradeError(value []byte) error {
 
 type response http.Response
 
-func (r *response) Bytes() ([]byte) {
+func (r *response) ReadBytes() ([]byte) {
+	defer r.Body.Close()
 	bytes, _ := ioutil.ReadAll(r.Body)
 	return bytes
 }
