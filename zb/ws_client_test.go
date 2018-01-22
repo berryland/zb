@@ -6,7 +6,11 @@ import (
 )
 
 func TestWebSocketClient_SubscribeQuote(t *testing.T) {
-	NewWebSocketClient().SubscribeQuote()
+	c := NewWebSocketClient()
+	c.Start()
+	c.SubscribeQuote("btc_usdt", func(quote *Quote) {
+		println(quote.Last)
+	})
 
 	for {
 		time.Sleep(5 * time.Second)

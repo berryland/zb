@@ -3,29 +3,21 @@ package zb
 import (
 	"github.com/gorilla/websocket"
 	"log"
+	"strings"
+	"github.com/buger/jsonparser"
 )
 
 const WebSocketServerUrl = "wss://api.zb.com:9999/websocket"
 
 type WebSocketClient struct {
-	conn *websocket.Conn
+	running   bool
+	conn      *websocket.Conn
+	decoders  map[string]func([]byte) interface{}
+	callbacks map[string]func(interface{})
 }
 
 func NewWebSocketClient() *WebSocketClient {
-	dialer := &websocket.Dialer{}
-	conn, _, err := dialer.Dial(WebSocketServerUrl, nil)
-	if err != nil {
-		log.Fatalln("Fail to connect to " + WebSocketServerUrl + ", error: " + err.Error())
-	}
-
-	go func() {
-		for {
-			_, bytes, _ := conn.ReadMessage()
-			println(string(bytes))
-		}
-	}()
-
-	return &WebSocketClient{conn: conn}
+	return &WebSocketClient{running: false}
 }
 
 type eventMessage struct {
@@ -33,6 +25,58 @@ type eventMessage struct {
 	Channel string `json:"channel"`
 }
 
-func (c *WebSocketClient) SubscribeQuote() {
-	c.conn.WriteJSON(eventMessage{Event: "addChannel", Channel: "btcusdt_ticker"})
+func (c *WebSocketClient) Start() {
+	if c.running {
+		return
+	}
+	c.running = true
+
+	dialer := &websocket.Dialer{}
+	conn, _, err := dialer.Dial(WebSocketServerUrl, nil)
+	c.conn = conn
+	if err != nil {
+		log.Fatalln("Fail to connect to " + WebSocketServerUrl + ", error: " + err.Error())
+	}
+
+	go func() {
+		for {
+			if _, bytes, err := c.conn.ReadMessage(); err != nil {
+				channel, _ := jsonparser.GetString(bytes, "channel")
+				if decoder, ok := c.decoders[channel]; ok {
+					value := decoder(bytes)
+					if callback, ok := c.callbacks[channel]; ok {
+						callback(&value)
+					}
+				}
+			}
+		}
+	}()
+}
+
+func (c *WebSocketClient) Stop() {
+	if !c.running {
+		return
+	}
+	c.running = false
+
+	c.conn.Close()
+}
+
+func (c *WebSocketClient) SubscribeQuote(symbol string, callback func(quote *Quote)) {
+	channel := strings.Replace(symbol, "_", "", 1) + "_ticker"
+	c.registerDecoder(channel, func(value []byte) interface{} {
+		return marshalQuote(value)
+	})
+	c.registerCallback(channel, func(v interface{}) {
+		callback(v.(*Quote))
+	})
+	c.conn.WriteJSON(eventMessage{Event: "addChannel", Channel: channel})
+}
+
+func (c *WebSocketClient) registerDecoder(channel string, decoder func(value []byte) interface{}) {
+	c.decoders[channel] = decoder
+}
+
+func (c *WebSocketClient) registerCallback(channel string, callback func(interface{})) {
+	c.callbacks[channel] = callback
 }
