@@ -40,13 +40,16 @@ func (c *WebSocketClient) Start() {
 
 	go func() {
 		for {
-			if _, bytes, err := c.conn.ReadMessage(); err == nil {
-				channel, _ := jsonparser.GetString(bytes, "channel")
-				if decoder, ok := c.decoders[channel]; ok {
-					value := decoder(bytes)
-					if callback, ok := c.callbacks[channel]; ok {
-						callback(value)
-					}
+			_, bytes, err := c.conn.ReadMessage()
+			if err != nil {
+				break
+			}
+
+			channel, _ := jsonparser.GetString(bytes, "channel")
+			if decoder, ok := c.decoders[channel]; ok {
+				value := decoder(bytes)
+				if callback, ok := c.callbacks[channel]; ok {
+					callback(value)
 				}
 			}
 		}
