@@ -25,7 +25,7 @@ type eventMessage struct {
 	Channel string `json:"channel"`
 }
 
-func (c *WebSocketClient) Start() {
+func (c *WebSocketClient) Connect() {
 	if c.running {
 		return
 	}
@@ -56,7 +56,7 @@ func (c *WebSocketClient) Start() {
 	}()
 }
 
-func (c *WebSocketClient) Stop() {
+func (c *WebSocketClient) Disconnect() {
 	if !c.running {
 		return
 	}
