@@ -393,16 +393,16 @@ func extractError(value []byte) error {
 	if err == json.KeyPathNotFoundError {
 		return nil
 	}
-	return &ApiError{Code: 1001, Message: msg}
+	return &ApiError{Code: GeneralError, Message: msg}
 }
 
 func extractTradeError(value []byte) error {
 	code, err := json.GetInt(value, "code")
-	if err == json.KeyPathNotFoundError || code == 1000 {
+	if err == json.KeyPathNotFoundError || ApiCode(code) == OK {
 		return nil
 	}
 	msg, _ := json.GetString(value, "message")
-	return &ApiError{Code: uint16(code), Message: msg}
+	return &ApiError{Code: ApiCode(code), Message: msg}
 }
 
 type response http.Response
