@@ -1,10 +1,10 @@
-# A Golang Client For ZB.com
+# A golang client for zb.com
 
 [![Build Status](https://travis-ci.org/pojozhang/exchange.svg?branch=master)](https://travis-ci.org/pojozhang/exchange)
 
 ## Set Up
 ```bash
-dep ensure -add github.com/pojozhang/exchange/zb
+dep ensure -add github.com/berryland/zb
 ```
 
 ## Usage
