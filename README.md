@@ -1,6 +1,6 @@
 # A golang client for zb.com
 
-[![Build Status](https://travis-ci.org/pojozhang/exchange.svg?branch=master)](https://travis-ci.org/pojozhang/exchange)
+[![Build Status](https://travis-ci.org/berryland/zb.svg?branch=master)](https://travis-ci.org/berryland/zb)
 
 ## Set Up
 ```bash
