@@ -40,7 +40,8 @@ func TestRestClient_GetDepth(t *testing.T) {
 }
 
 func TestRestClient_GetAccount(t *testing.T) {
-	NewRestClient().GetAccount(accessKey, secretKey)
+	account, _ := NewRestClient().GetAccount(accessKey, secretKey)
+	assert.NotNil(t, account.Username)
 }
 
 func TestRestClient_GetOrders(t *testing.T) {
