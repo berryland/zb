@@ -22,7 +22,7 @@ func TestRestClient_GetLatestQuote(t *testing.T) {
 func TestWebSocketClient_SubscribeQuote(t *testing.T) {
     c := NewWebSocketClient()
     c.Connect()
-    c.SubscribeQuote("btc_usdt", func(quote *Quote) {
+    c.SubscribeQuote("btc_usdt", func(quote Quote) {
         println(quote.Last)
     })
 }
