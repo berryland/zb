@@ -35,10 +35,12 @@ func (c *WebSocketClient) Connect() {
 	conn, _, err := dialer.Dial(WebSocketServerUrl, nil)
 	c.conn = conn
 	if err != nil {
+		c.Disconnect()
 		log.Fatalln("Fail to connect to " + WebSocketServerUrl + ", error: " + err.Error())
 	}
 
 	go func() {
+		defer c.Disconnect()
 		for {
 			_, bytes, err := c.conn.ReadMessage()
 			if err != nil {
@@ -67,13 +69,17 @@ func (c *WebSocketClient) Disconnect() {
 
 func (c *WebSocketClient) SubscribeQuote(symbol string, callback func(quote Quote)) {
 	channel := strings.Replace(symbol, "_", "", 1) + "_ticker"
-	c.registerDecoder(channel, func(value []byte) interface{} {
+	c.register(channel, func(value []byte) interface{} {
 		return marshalQuote(value)
-	})
-	c.registerCallback(channel, func(v interface{}) {
+	}, func(v interface{}) {
 		callback(v.(Quote))
 	})
 	c.conn.WriteJSON(eventMessage{Event: "addChannel", Channel: channel})
+}
+
+func (c *WebSocketClient) register(channel string, decoder func(value []byte) interface{}, callback func(interface{})) {
+	c.registerDecoder(channel, decoder)
+	c.registerCallback(channel, callback)
 }
 
 func (c *WebSocketClient) registerDecoder(channel string, decoder func(value []byte) interface{}) {
