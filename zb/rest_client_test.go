@@ -21,16 +21,19 @@ func TestRestClient_GetLatestQuote(t *testing.T) {
 }
 
 func TestRestClient_GetKlines(t *testing.T) {
-	NewRestClient().GetKlines("btc_usdt", "5min", 1516029900000, 20)
+	klines, _ := NewRestClient().GetKlines("btc_usdt", "5min", 1516029900000, 20)
+	assert.True(t, klines[0].High > 0)
 }
 
 func TestRestClient_GetTrades(t *testing.T) {
-	NewRestClient().GetTrades("btc_usdt", 0)
+	trades, _ := NewRestClient().GetTrades("btc_usdt", 0)
+	assert.True(t, trades[0].Price > 0)
 }
 
 func TestRestClient_GetDepth(t *testing.T) {
 	depth, _ := NewRestClient().GetDepth("btc_usdt", 10)
 	assert.NotNil(t, depth)
+	assert.True(t, depth.Time > 0)
 
 	_, err := NewRestClient().GetDepth("wrong_symbol", 10)
 	assert.NotNil(t, err)

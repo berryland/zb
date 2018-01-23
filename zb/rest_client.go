@@ -54,12 +54,7 @@ func (c *RestClient) GetSymbols() (map[string]SymbolConfig, error) {
 }
 
 func (c *RestClient) GetLatestQuote(symbol string) (Quote, error) {
-	u, _ := url.Parse(DataApiUrl + "ticker")
-	q := u.Query()
-	q.Set("market", symbol)
-	u.RawQuery = q.Encode()
-
-	resp, err := c.doGet(u.String())
+	resp, err := c.doGet(buildUrl(DataApiUrl+"ticker", map[string]string{"market": symbol}).String())
 	if err != nil {
 		return Quote{}, err
 	}
@@ -75,15 +70,7 @@ func (c *RestClient) GetLatestQuote(symbol string) (Quote, error) {
 
 func (c *RestClient) GetKlines(symbol string, period string, since uint64, size uint16) ([]Kline, error) {
 	var klines []Kline
-	u, _ := url.Parse(DataApiUrl + "kline")
-	q := u.Query()
-	q.Set("market", symbol)
-	q.Set("type", period)
-	q.Set("since", strconv.FormatUint(since, 10))
-	q.Set("size", strconv.FormatUint(uint64(size), 10))
-	u.RawQuery = q.Encode()
-
-	resp, err := c.doGet(u.String())
+	resp, err := c.doGet(buildUrl(DataApiUrl+"kline", map[string]string{"market": symbol, "type": period, "since": strconv.FormatUint(since, 10), "size": strconv.FormatUint(uint64(size), 10)}).String())
 	if err != nil {
 		return klines, err
 	}
@@ -109,13 +96,7 @@ func (c *RestClient) GetKlines(symbol string, period string, since uint64, size 
 
 func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
 	var trades []Trade
-	u, _ := url.Parse(DataApiUrl + "trades")
-	q := u.Query()
-	q.Set("market", symbol)
-	q.Set("since", strconv.FormatUint(since, 10))
-	u.RawQuery = q.Encode()
-
-	resp, err := c.doGet(u.String())
+	resp, err := c.doGet(buildUrl(DataApiUrl+"trades", map[string]string{"market": symbol, "since": strconv.FormatUint(since, 10)}).String())
 	if err != nil {
 		return trades, err
 	}
@@ -143,13 +124,7 @@ func (c *RestClient) GetTrades(symbol string, since uint64) ([]Trade, error) {
 }
 
 func (c *RestClient) GetDepth(symbol string, size uint8) (Depth, error) {
-	u, _ := url.Parse(DataApiUrl + "depth")
-	q := u.Query()
-	q.Set("market", symbol)
-	q.Set("size", strconv.FormatUint(uint64(size), 10))
-	u.RawQuery = q.Encode()
-
-	resp, err := c.doGet(u.String())
+	resp, err := c.doGet(buildUrl(DataApiUrl+"depth", map[string]string{"market": symbol, "size": strconv.FormatUint(uint64(size), 10)}).String())
 	if err != nil {
 		return Depth{}, err
 	}
@@ -417,4 +392,14 @@ func (c *RestClient) doGet(url string) (*response, error) {
 	resp, err := c.client.Get(url)
 	r := response(*resp)
 	return &r, err
+}
+
+func buildUrl(rawUrl string, query map[string]string) *url.URL {
+	u, _ := url.Parse(rawUrl)
+	q := u.Query()
+	for k, v := range query {
+		q.Set(k, v)
+	}
+	u.RawQuery = q.Encode()
+	return u
 }
