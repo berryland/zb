@@ -1,4 +1,4 @@
-# A golang client for ZB.com
+# A Golang Client For ZB.com
 
 [![Build Status](https://travis-ci.org/pojozhang/exchange.svg?branch=master)](https://travis-ci.org/pojozhang/exchange)
 
@@ -21,7 +21,7 @@ func TestRestClient_GetLatestQuote(t *testing.T) {
 ```go
 func TestWebSocketClient_SubscribeQuote(t *testing.T) {
     c := NewWebSocketClient()
-    c.Start()
+    c.Connect()
     c.SubscribeQuote("btc_usdt", func(quote *Quote) {
         println(quote.Last)
     })
